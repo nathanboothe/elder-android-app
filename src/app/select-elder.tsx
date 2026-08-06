@@ -1,14 +1,18 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { fetchElders, type Elder } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
-const ELDERS = ['Dan Reeder', 'Paul Clegg', 'Frank Council'];
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+}
+
+function toApiDate(iso: string): string {
+  return iso.split('T')[0]; // YYYY-MM-DD, what the backend expects
 }
 
 export default function SelectElderScreen() {
@@ -18,7 +22,29 @@ export default function SelectElderScreen() {
     time: string;
   }>();
   const router = useRouter();
-  const [selectedElder, setSelectedElder] = useState<string | null>(null);
+  const [elders, setElders] = useState<Elder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [selectedElder, setSelectedElder] = useState<Elder | null>(null);
+
+  useEffect(() => {
+    loadElders();
+  }, [campus, date, time]);
+
+  async function loadElders() {
+    if (!campus || !date || !time) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await fetchElders(campus, toApiDate(date), time);
+      setElders(data);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -29,32 +55,63 @@ export default function SelectElderScreen() {
         </Text>
         <Text style={styles.title}>Who would you like to meet with?</Text>
 
-        <View style={styles.elderList}>
-          {ELDERS.map((elder) => {
-            const isSelected = elder === selectedElder;
-            return (
-              <Pressable
-                key={elder}
-                onPress={() => setSelectedElder(elder)}
-                style={[styles.elderButton, isSelected && styles.elderButtonSelected]}
-              >
-                <Text
-                  style={[
-                    styles.elderButtonText,
-                    isSelected && styles.elderButtonTextSelected,
-                  ]}
-                >
-                  {elder}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {selectedElder && (
-          <View style={styles.confirmation}>
-            <Text style={styles.confirmationText}>Meeting with: {selectedElder}</Text>
+        {loading && (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={COASTAL_BLUE} />
           </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              Couldn't load elders. Check your connection and try again.
+            </Text>
+            <Pressable style={styles.retryButton} onPress={loadElders}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {!loading && !error && elders.length === 0 && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              No elders are available at this time. Try a different time slot.
+            </Text>
+          </View>
+        )}
+
+        {!loading && !error && elders.length > 0 && (
+          <>
+            <View style={styles.elderList}>
+              {elders.map((elder) => {
+                const isSelected = elder.id === selectedElder?.id;
+                return (
+                  <Pressable
+                    key={elder.id}
+                    onPress={() => setSelectedElder(elder)}
+                    style={[styles.elderButton, isSelected && styles.elderButtonSelected]}
+                  >
+                    <Text
+                      style={[
+                        styles.elderButtonText,
+                        isSelected && styles.elderButtonTextSelected,
+                      ]}
+                    >
+                      {elder.name}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {selectedElder && (
+              <View style={styles.confirmation}>
+                <Text style={styles.confirmationText}>
+                  Meeting with: {selectedElder.name}
+                </Text>
+              </View>
+            )}
+          </>
         )}
 
         <Pressable
@@ -64,7 +121,7 @@ export default function SelectElderScreen() {
             if (!selectedElder || !campus || !date || !time) return;
             router.push({
               pathname: '/confirmation',
-              params: { campus, date, time, elder: selectedElder },
+              params: { campus, date, time, elder: selectedElder.name },
             });
           }}
         >
@@ -86,6 +143,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
+  centerBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  errorText: { color: '#c0392b', textAlign: 'center', fontSize: 14 },
+  retryButton: {
+    backgroundColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: { color: '#fff', fontWeight: '600' },
   elderList: { gap: 12 },
   elderButton: {
     borderWidth: 1.5,

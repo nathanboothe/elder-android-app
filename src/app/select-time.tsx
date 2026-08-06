@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const COASTAL_BLUE = '#407DA8';
 
-const TIMES = ['7:30 a.m.', '8:00 a.m.', '8:30 a.m.', '9:00 a.m.', '9:30 a.m.'];
+const TIMES = ['7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM'];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
