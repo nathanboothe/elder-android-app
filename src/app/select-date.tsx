@@ -96,7 +96,7 @@ export default function SelectDateScreen() {
           onPress={() => {
             if (!selectedDate || !campus) return;
             router.push({
-              pathname: '/select-elder',
+              pathname: '/select-time',
               params: { campus, date: selectedDate.toISOString() },
             });
           }}

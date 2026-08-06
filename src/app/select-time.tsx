@@ -5,70 +5,66 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const COASTAL_BLUE = '#407DA8';
 
-const ELDERS = ['Dan Reeder', 'Paul Clegg', 'Frank Council'];
+const TIMES = ['7:30 a.m.', '8:00 a.m.', '8:30 a.m.', '9:00 a.m.', '9:30 a.m.'];
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
-export default function SelectElderScreen() {
-  const { campus, date, time } = useLocalSearchParams<{
-    campus: string;
-    date: string;
-    time: string;
-  }>();
+export default function SelectTimeScreen() {
+  const { campus, date } = useLocalSearchParams<{ campus: string; date: string }>();
   const router = useRouter();
-  const [selectedElder, setSelectedElder] = useState<string | null>(null);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: 'Select an Elder' }} />
+      <Stack.Screen options={{ title: formatDate(date) }} />
       <View style={styles.container}>
         <Text style={styles.subtitle}>
-          {campus} — {formatDate(date)} at {time}
+          {campus} — {formatDate(date)}
         </Text>
-        <Text style={styles.title}>Who would you like to meet with?</Text>
+        <Text style={styles.title}>What time works for you?</Text>
 
-        <View style={styles.elderList}>
-          {ELDERS.map((elder) => {
-            const isSelected = elder === selectedElder;
+        <View style={styles.timeList}>
+          {TIMES.map((time) => {
+            const isSelected = time === selectedTime;
             return (
               <Pressable
-                key={elder}
-                onPress={() => setSelectedElder(elder)}
-                style={[styles.elderButton, isSelected && styles.elderButtonSelected]}
+                key={time}
+                onPress={() => setSelectedTime(time)}
+                style={[styles.timeButton, isSelected && styles.timeButtonSelected]}
               >
                 <Text
                   style={[
-                    styles.elderButtonText,
-                    isSelected && styles.elderButtonTextSelected,
+                    styles.timeButtonText,
+                    isSelected && styles.timeButtonTextSelected,
                   ]}
                 >
-                  {elder}
+                  {time}
                 </Text>
               </Pressable>
             );
           })}
         </View>
 
-        {selectedElder && (
+        {selectedTime && (
           <View style={styles.confirmation}>
-            <Text style={styles.confirmationText}>Meeting with: {selectedElder}</Text>
+            <Text style={styles.confirmationText}>Selected: {selectedTime}</Text>
           </View>
         )}
 
         <Pressable
-          disabled={!selectedElder}
-          style={[styles.continueButton, !selectedElder && styles.continueButtonDisabled]}
+          disabled={!selectedTime}
+          style={[styles.continueButton, !selectedTime && styles.continueButtonDisabled]}
           onPress={() => {
-            if (!selectedElder || !campus || !date || !time) return;
+            if (!selectedTime || !campus || !date) return;
             router.push({
-              pathname: '/confirmation',
-              params: { campus, date, time, elder: selectedElder },
+              pathname: '/select-elder',
+              params: { campus, date, time: selectedTime },
             });
           }}
         >
-          <Text style={styles.continueButtonText}>Confirm Appointment</Text>
+          <Text style={styles.continueButtonText}>Continue</Text>
         </Pressable>
       </View>
     </SafeAreaView>
@@ -86,17 +82,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  elderList: { gap: 12 },
-  elderButton: {
+  timeList: { gap: 12 },
+  timeButton: {
     borderWidth: 1.5,
     borderColor: COASTAL_BLUE,
     borderRadius: 10,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
   },
-  elderButtonSelected: { backgroundColor: COASTAL_BLUE },
-  elderButtonText: { color: COASTAL_BLUE, fontSize: 16, fontWeight: '600' },
-  elderButtonTextSelected: { color: '#fff' },
+  timeButtonSelected: { backgroundColor: COASTAL_BLUE },
+  timeButtonText: { color: COASTAL_BLUE, fontSize: 15, fontWeight: '600' },
+  timeButtonTextSelected: { color: '#fff' },
   confirmation: {
     marginTop: 24,
     backgroundColor: '#EAF1F6',

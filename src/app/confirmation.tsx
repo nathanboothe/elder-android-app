@@ -13,9 +13,10 @@ function formatDate(iso: string): string {
 }
 
 export default function ConfirmationScreen() {
-  const { campus, date, elder } = useLocalSearchParams<{
+  const { campus, date, time, elder } = useLocalSearchParams<{
     campus: string;
     date: string;
+    time: string;
     elder: string;
   }>();
   const router = useRouter();
@@ -36,6 +37,11 @@ export default function ConfirmationScreen() {
           <View style={styles.row}>
             <Text style={styles.label}>Date</Text>
             <Text style={styles.value}>{formatDate(date)}</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.row}>
+            <Text style={styles.label}>Time</Text>
+            <Text style={styles.value}>{time}</Text>
           </View>
           <View style={styles.divider} />
           <View style={styles.row}>
@@ -60,17 +66,8 @@ export default function ConfirmationScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
   container: { flex: 1, paddingHorizontal: 20, paddingTop: 32, alignItems: 'center' },
-  checkmark: {
-    fontSize: 48,
-    color: COASTAL_BLUE,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COASTAL_BLUE,
-    marginBottom: 24,
-  },
+  checkmark: { fontSize: 48, color: COASTAL_BLUE, marginBottom: 12 },
+  title: { fontSize: 22, fontWeight: '700', color: COASTAL_BLUE, marginBottom: 24 },
   card: {
     alignSelf: 'stretch',
     borderWidth: 1.5,
@@ -78,11 +75,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
   },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
-  },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
   divider: { height: 1, backgroundColor: '#EAF1F6' },
   label: { color: '#6b7c88', fontSize: 14, fontWeight: '600' },
   value: { color: COASTAL_BLUE, fontSize: 15, fontWeight: '700' },
