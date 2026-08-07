@@ -13,6 +13,12 @@ export default function RootLayout() {
       <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" options={{ headerShown: false }} />
+        <Stack.Screen name="code" options={{ headerShown: true, title: 'Enter Code' }} />
+        <Stack.Screen
+          name="confirm-campus"
+          options={{ headerShown: true, title: 'Confirm Campus' }}
+        />
+        <Stack.Screen name="admin" options={{ headerShown: true, title: 'Elder / Admin' }} />
         <Stack.Screen name="book" options={{ headerShown: true, title: 'Select Campus' }} />
         <Stack.Screen name="select-date" options={{ headerShown: true }} />
         <Stack.Screen name="select-time" options={{ headerShown: true }} />
