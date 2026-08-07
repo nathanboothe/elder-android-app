@@ -81,6 +81,51 @@ export async function loginWithCode(
   return { campus: data.campus, classDate: data.classDate };
 }
 
+export type WacCode = {
+  id: string;
+  code: string;
+  campus: string;
+  classDate: string;
+  active: boolean;
+};
+
+function adminAuthHeaders(): HeadersInit {
+  if (!adminSessionToken) {
+    throw new Error('Not signed in as admin.');
+  }
+  return { Authorization: `Bearer ${adminSessionToken}` };
+}
+
+export async function fetchWacCodes(): Promise<WacCode[]> {
+  const response = await fetch(`${API_BASE}/wac-codes`, { headers: adminAuthHeaders() });
+  if (!response.ok) throw new Error(`Failed to load codes (${response.status})`);
+  return response.json();
+}
+
+export async function createWacCode(input: {
+  code: string;
+  campusName: string;
+  classDate: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/wac-codes`, {
+    method: 'POST',
+    headers: { ...adminAuthHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error || `Failed to create code (${response.status})`);
+  }
+}
+
+export async function deactivateWacCode(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/wac-codes/${id}`, {
+    method: 'DELETE',
+    headers: adminAuthHeaders(),
+  });
+  if (!response.ok) throw new Error(`Failed to deactivate code (${response.status})`);
+}
+
 export async function fetchCampuses(): Promise<Campus[]> {
   const response = await fetch(`${API_BASE}/campuses`, {
     headers: authHeaders(),
