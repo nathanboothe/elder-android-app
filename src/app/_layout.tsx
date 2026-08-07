@@ -19,6 +19,7 @@ export default function RootLayout() {
           options={{ headerShown: true, title: 'Confirm Campus' }}
         />
         <Stack.Screen name="admin" options={{ headerShown: true, title: 'Elder / Admin' }} />
+        <Stack.Screen name="admin-home" options={{ headerShown: true, title: 'Admin' }} />
         <Stack.Screen name="book" options={{ headerShown: true, title: 'Select Campus' }} />
         <Stack.Screen name="select-date" options={{ headerShown: true }} />
         <Stack.Screen name="select-time" options={{ headerShown: true }} />
