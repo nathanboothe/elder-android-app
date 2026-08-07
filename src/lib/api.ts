@@ -1,5 +1,11 @@
 const API_BASE = 'https://elder-android-backend.onrender.com/api';
 
+// Not secrets — safe to have as real values here (embedded in the app itself).
+export const ENTRA_CONFIG = {
+  tenantId: '1607456c-506f-4aea-bd09-15a63ec8ad52',
+  clientId: '9ae266aa-5a20-409d-8fae-153a6cedf606',
+};
+
 export type Campus = {
   id: string;
   name: string;
@@ -17,12 +23,36 @@ export type Elder = {
 // tradeoff for not adding SecureStore complexity yet. Can be upgraded to
 // persisted storage later if that turns out to matter in practice.
 let sessionToken: string | null = null;
+let adminSessionToken: string | null = null;
 
 function authHeaders(): HeadersInit {
   if (!sessionToken) {
     throw new Error('Not logged in — enter your We Are Coastal code first.');
   }
   return { Authorization: `Bearer ${sessionToken}` };
+}
+
+/**
+ * Exchanges a verified Entra ID token for this app's own admin-scoped
+ * session token. The backend checks the token's signature/issuer/audience
+ * and group membership before issuing one — see elder-android-backend's
+ * lib/entraAuth.js and lib/schedulerAuth.js.
+ */
+export async function loginWithEntraIdToken(idToken: string): Promise<{ name: string }> {
+  const response = await fetch(`${API_BASE}/admin-auth`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error || `Sign-in failed (${response.status})`);
+  }
+
+  const data = await response.json();
+  adminSessionToken = data.token;
+  return { name: data.name };
 }
 
 /**
