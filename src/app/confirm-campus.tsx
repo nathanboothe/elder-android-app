@@ -13,9 +13,9 @@ export default function ConfirmCampusScreen() {
       <View style={styles.container}>
         <View style={styles.messageBox}>
           <Text style={styles.messageText}>
-            The code entered indicates you attended We Are Coastal at {campus}. Tap "Next" to
-            continue or tap "Choose a different campus" to create an appointment at an alternate
-            campus.
+            The code entered indicates you attended "We Are Coastal" at the {campus} campus. Tap
+            "Next" to continue or tap "Choose a different campus" to create an appointment at an
+            alternate campus.
           </Text>
         </View>
 
