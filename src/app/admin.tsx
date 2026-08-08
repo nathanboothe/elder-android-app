@@ -23,10 +23,11 @@ export default function AdminScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Relies on the app's "scheme" in app.json (elderandroidapp) — only
-  // resolves to a usable redirect inside a custom dev client / standalone
-  // build, not Expo Go.
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'elderandroidapp' });
+  // Explicit path so this always resolves to elderandroidapp://redirect —
+  // matching exactly what's registered in Entra. Without an explicit path,
+  // makeRedirectUri can generate a bare "elderandroidapp://" with no
+  // authority segment, which Entra's redirect URI validator rejects outright.
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'elderandroidapp', path: 'redirect' });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
     {
