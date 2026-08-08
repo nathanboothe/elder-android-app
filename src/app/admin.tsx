@@ -1,15 +1,9 @@
 import * as AuthSession from 'expo-auth-session';
-import * as WebBrowser from 'expo-web-browser';
-import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ENTRA_CONFIG, loginWithEntraIdToken } from '@/lib/api';
-
-// Required once per app so the browser sign-in flow can hand control back
-// to this screen when it completes.
-WebBrowser.maybeCompleteAuthSession();
+import { ENTRA_CONFIG, setPendingCodeVerifier } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
@@ -19,14 +13,8 @@ const discovery = {
 };
 
 export default function AdminScreen() {
-  const router = useRouter();
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Explicit path so this always resolves to elderandroidapp://redirect —
-  // matching exactly what's registered in Entra. Without an explicit path,
-  // makeRedirectUri can generate a bare "elderandroidapp://" with no
-  // authority segment, which Entra's redirect URI validator rejects outright.
   const redirectUri = AuthSession.makeRedirectUri({ scheme: 'elderandroidapp', path: 'redirect' });
 
   const [request, response, promptAsync] = AuthSession.useAuthRequest(
@@ -40,61 +28,44 @@ export default function AdminScreen() {
     discovery
   );
 
+  // Only handling failure/cancel here — a SUCCESSFUL sign-in is completed
+  // entirely by redirect.tsx instead, since this screen may not survive
+  // the round-trip through the browser (expo-router can reset the
+  // navigation stack on deep link, unmounting this screen and losing any
+  // state it was holding).
   useEffect(() => {
-    if (response?.type === 'success' && response.params.code) {
-      handleCodeExchange(response.params.code);
-    } else if (response?.type === 'error') {
+    if (response?.type === 'error') {
       setError(response.error?.message ?? 'Sign-in was cancelled or failed.');
+    } else if (response?.type === 'dismiss' || response?.type === 'cancel') {
+      setError('Sign-in was cancelled.');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [response]);
 
-  async function handleCodeExchange(code: string) {
-    if (!request) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      const tokenResult = await AuthSession.exchangeCodeAsync(
-        {
-          clientId: ENTRA_CONFIG.clientId,
-          code,
-          redirectUri,
-          extraParams: { code_verifier: request.codeVerifier ?? '' },
-        },
-        discovery
-      );
-
-      if (!tokenResult.idToken) {
-        throw new Error('No ID token returned from sign-in.');
-      }
-
-      await loginWithEntraIdToken(tokenResult.idToken);
-      router.replace('/admin-home');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed.');
-    } finally {
-      setSubmitting(false);
+  function handleSignIn() {
+    // Stash the PKCE verifier where redirect.tsx can retrieve it once the
+    // app reopens — this is the one piece of state that actually needs to
+    // survive the trip out to the browser and back.
+    if (request?.codeVerifier) {
+      setPendingCodeVerifier(request.codeVerifier);
     }
+    setError(null);
+    promptAsync();
   }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <Text style={styles.title}>Elder / Admin Sign-In</Text>
-        <Text style={styles.body}>Sign in with your @gocoastal.org Microsoft account.</Text>
+        <Text style={styles.body}>Sign in with your Microsoft account.</Text>
 
         {error && <Text style={styles.errorText}>{error}</Text>}
 
         <Pressable
-          style={[styles.signInButton, (!request || submitting) && styles.signInButtonDisabled]}
-          disabled={!request || submitting}
-          onPress={() => promptAsync()}
+          style={[styles.signInButton, !request && styles.signInButtonDisabled]}
+          disabled={!request}
+          onPress={handleSignIn}
         >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.signInButtonText}>Sign in with Microsoft</Text>
-          )}
+          <Text style={styles.signInButtonText}>Sign in with Microsoft</Text>
         </Pressable>
       </View>
     </SafeAreaView>

@@ -25,6 +25,22 @@ export type Elder = {
 let sessionToken: string | null = null;
 let adminSessionToken: string | null = null;
 
+// Holds the PKCE code_verifier between launching the Entra sign-in browser
+// and the app reopening via the redirect — a plain module variable, not
+// React state, since the screen that initiated sign-in may not survive
+// the round-trip if expo-router resets the navigation stack on deep link.
+let pendingCodeVerifier: string | null = null;
+
+export function setPendingCodeVerifier(verifier: string) {
+  pendingCodeVerifier = verifier;
+}
+
+export function takePendingCodeVerifier(): string | null {
+  const v = pendingCodeVerifier;
+  pendingCodeVerifier = null;
+  return v;
+}
+
 function authHeaders(): HeadersInit {
   if (!sessionToken) {
     throw new Error('Not logged in — enter your We Are Coastal code first.');
