@@ -1,20 +1,46 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const COASTAL_BLUE = '#407DA8';
+import { fetchTimes } from '@/lib/api';
 
-const TIMES = ['7:30 AM', '8:00 AM', '8:30 AM', '9:00 AM', '9:30 AM'];
+const COASTAL_BLUE = '#407DA8';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
+function toApiDate(iso: string): string {
+  return iso.split('T')[0]; // YYYY-MM-DD, what the backend expects
+}
+
 export default function SelectTimeScreen() {
   const { campus, date } = useLocalSearchParams<{ campus: string; date: string }>();
   const router = useRouter();
+  const [times, setTimes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadTimes();
+  }, [campus, date]);
+
+  async function loadTimes() {
+    if (!campus || !date) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await fetchTimes(campus, toApiDate(date));
+      setTimes(data);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -25,27 +51,51 @@ export default function SelectTimeScreen() {
         </Text>
         <Text style={styles.title}>What time works for you?</Text>
 
-        <View style={styles.timeList}>
-          {TIMES.map((time) => {
-            const isSelected = time === selectedTime;
-            return (
-              <Pressable
-                key={time}
-                onPress={() => setSelectedTime(time)}
-                style={[styles.timeButton, isSelected && styles.timeButtonSelected]}
-              >
-                <Text
-                  style={[
-                    styles.timeButtonText,
-                    isSelected && styles.timeButtonTextSelected,
-                  ]}
+        {loading && (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={COASTAL_BLUE} />
+          </View>
+        )}
+
+        {!loading && error && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              Couldn't load times. Check your connection and try again.
+            </Text>
+            <Pressable style={styles.retryButton} onPress={loadTimes}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {!loading && !error && times.length === 0 && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              No times are available on this date. Try a different date.
+            </Text>
+          </View>
+        )}
+
+        {!loading && !error && times.length > 0 && (
+          <View style={styles.timeList}>
+            {times.map((time) => {
+              const isSelected = time === selectedTime;
+              return (
+                <Pressable
+                  key={time}
+                  onPress={() => setSelectedTime(time)}
+                  style={[styles.timeButton, isSelected && styles.timeButtonSelected]}
                 >
-                  {time}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text
+                    style={[styles.timeButtonText, isSelected && styles.timeButtonTextSelected]}
+                  >
+                    {time}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        )}
 
         {selectedTime && (
           <View style={styles.confirmation}>
@@ -82,6 +132,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
+  centerBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  errorText: { color: '#c0392b', textAlign: 'center', fontSize: 14 },
+  retryButton: {
+    backgroundColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: { color: '#fff', fontWeight: '600' },
   timeList: { gap: 12 },
   timeButton: {
     borderWidth: 1.5,

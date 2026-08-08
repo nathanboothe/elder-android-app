@@ -25,6 +25,7 @@ export default function RootLayout() {
         <Stack.Screen name="select-time" options={{ headerShown: true }} />
         <Stack.Screen name="select-elder" options={{ headerShown: true }} />
         <Stack.Screen name="confirmation" options={{ headerShown: true }} />
+        <Stack.Screen name="confirmed" options={{ headerShown: true }} />
       </Stack>
     </ThemeProvider>
   );

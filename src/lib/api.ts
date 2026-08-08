@@ -136,6 +136,44 @@ export async function fetchCampuses(): Promise<Campus[]> {
   return response.json();
 }
 
+export async function fetchTimes(campusName: string, date: string): Promise<string[]> {
+  const params = new URLSearchParams({ campusName, date });
+  const response = await fetch(`${API_BASE}/times?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load times (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createAppointment(input: {
+  campusName: string;
+  elderName: string;
+  date: string;
+  timeSlot: string;
+  memberName: string;
+  memberEmail: string;
+}): Promise<{ emailSent: boolean }> {
+  const response = await fetch(`${API_BASE}/appointments`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}) as { error?: string });
+    throw new Error(
+      body.error ||
+        (response.status === 409
+          ? 'That time was just booked by someone else. Please pick another.'
+          : `Failed to book appointment (${response.status})`)
+    );
+  }
+
+  return response.json();
+}
+
 export async function fetchElders(
   campusName: string,
   date: string,

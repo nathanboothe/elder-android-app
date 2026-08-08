@@ -1,6 +1,9 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { createAppointment } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
@@ -12,6 +15,10 @@ function formatDate(iso: string): string {
   });
 }
 
+function toApiDate(iso: string): string {
+  return iso.split('T')[0]; // YYYY-MM-DD, what the backend expects
+}
+
 export default function ConfirmationScreen() {
   const { campus, date, time, elder } = useLocalSearchParams<{
     campus: string;
@@ -21,12 +28,44 @@ export default function ConfirmationScreen() {
   }>();
   const router = useRouter();
 
+  const [memberName, setMemberName] = useState('');
+  const [memberEmail, setMemberEmail] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleConfirm() {
+    if (!campus || !date || !time || !elder) return;
+    if (!memberName.trim() || !memberEmail.trim()) {
+      setError('Please enter your name and email.');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await createAppointment({
+        campusName: campus,
+        elderName: elder,
+        date: toApiDate(date),
+        timeSlot: time,
+        memberName: memberName.trim(),
+        memberEmail: memberEmail.trim(),
+      });
+      // Only navigate to the success screen once the backend has actually
+      // confirmed the slot — if it was taken in the meantime, the error
+      // surfaces here instead of a false "You're All Set!" screen.
+      router.replace({ pathname: '/confirmed', params: { campus, date, time, elder } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to book your appointment.');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen options={{ title: 'Confirmed' }} />
+      <Stack.Screen options={{ title: 'Review & Confirm' }} />
       <View style={styles.container}>
-        <Text style={styles.checkmark}>✓</Text>
-        <Text style={styles.title}>You're All Set!</Text>
+        <Text style={styles.title}>Review Your Appointment</Text>
 
         <View style={styles.card}>
           <View style={styles.row}>
@@ -50,13 +89,46 @@ export default function ConfirmationScreen() {
           </View>
         </View>
 
-        <Text style={styles.note}>
-          (Placeholder: confirmation emails to the elder, you, and OME will be sent once
-          the backend is connected.)
-        </Text>
+        <View style={styles.form}>
+          <Text style={styles.formLabel}>Your Name</Text>
+          <TextInput
+            style={styles.input}
+            value={memberName}
+            onChangeText={(text) => {
+              setMemberName(text);
+              setError(null);
+            }}
+            placeholder="Full name"
+            autoCapitalize="words"
+          />
 
-        <Pressable style={styles.doneButton} onPress={() => router.replace('/')}>
-          <Text style={styles.doneButtonText}>Done</Text>
+          <Text style={styles.formLabel}>Your Email</Text>
+          <TextInput
+            style={styles.input}
+            value={memberEmail}
+            onChangeText={(text) => {
+              setMemberEmail(text);
+              setError(null);
+            }}
+            placeholder="you@example.com"
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+          />
+        </View>
+
+        {error && <Text style={styles.errorText}>{error}</Text>}
+
+        <Pressable
+          style={[styles.confirmButton, submitting && styles.confirmButtonDisabled]}
+          onPress={handleConfirm}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.confirmButtonText}>Confirm Appointment</Text>
+          )}
         </Pressable>
       </View>
     </SafeAreaView>
@@ -65,35 +137,44 @@ export default function ConfirmationScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#fff' },
-  container: { flex: 1, paddingHorizontal: 20, paddingTop: 32, alignItems: 'center' },
-  checkmark: { fontSize: 48, color: COASTAL_BLUE, marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: '700', color: COASTAL_BLUE, marginBottom: 24 },
+  container: { flex: 1, paddingHorizontal: 20, paddingTop: 24 },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COASTAL_BLUE,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
   card: {
-    alignSelf: 'stretch',
     borderWidth: 1.5,
     borderColor: COASTAL_BLUE,
     borderRadius: 12,
     padding: 16,
+    marginBottom: 20,
   },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10 },
   divider: { height: 1, backgroundColor: '#EAF1F6' },
   label: { color: '#6b7c88', fontSize: 14, fontWeight: '600' },
   value: { color: COASTAL_BLUE, fontSize: 15, fontWeight: '700' },
-  note: {
-    marginTop: 20,
-    color: '#6b7c88',
-    fontSize: 12,
-    fontStyle: 'italic',
-    textAlign: 'center',
+  form: { gap: 8, marginBottom: 12 },
+  formLabel: { fontSize: 13, fontWeight: '600', color: COASTAL_BLUE, marginTop: 8 },
+  input: {
+    borderWidth: 1.5,
+    borderColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    fontSize: 15,
   },
-  doneButton: {
+  errorText: { color: '#c0392b', fontSize: 13, textAlign: 'center', marginBottom: 8 },
+  confirmButton: {
     marginTop: 'auto',
     marginBottom: 24,
-    alignSelf: 'stretch',
     backgroundColor: COASTAL_BLUE,
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
   },
-  doneButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  confirmButtonDisabled: { opacity: 0.7 },
+  confirmButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });
