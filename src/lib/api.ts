@@ -105,6 +105,35 @@ export async function loginWithEntraIdToken(
   return { name: data.name, role: data.role, elderName: adminElderName };
 }
 
+export type M365SyncSummary = {
+  added: string[];
+  updated: string[];
+  reactivated: string[];
+  deactivated: string[];
+  skipped: { name: string; reason: string }[];
+  cancelledAppointments: {
+    elderName: string;
+    memberName: string;
+    memberEmail: string;
+    campus: string;
+    date: string;
+    timeSlot: string;
+  }[];
+  duplicates: { name: string; objectId: string; groups: string[] }[];
+};
+
+export async function refreshFromM365(): Promise<M365SyncSummary> {
+  const response = await fetch(`${API_BASE}/elder-sync/refresh`, {
+    method: 'POST',
+    headers: adminAuthHeaders(),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error || `Failed to refresh from M365 (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function fetchAllElders(): Promise<AdminElder[]> {
   const response = await fetch(`${API_BASE}/all-elders`, { headers: adminAuthHeaders() });
   if (!response.ok) throw new Error(`Failed to load elders (${response.status})`);
