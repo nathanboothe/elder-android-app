@@ -1,9 +1,16 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { fetchDates } from '@/lib/api';
+import { fetchDates, submitSundayOptOut } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
@@ -22,10 +29,20 @@ export default function SelectDateScreen() {
   const { campus, classDate } = useLocalSearchParams<{ campus: string; classDate: string }>();
   const router = useRouter();
   const [mode, setMode] = useState<'choose' | 'sunday' | 'cant-meet'>('choose');
+
+  // Sunday-picker state
   const [dates, setDates] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+
+  // Opt-out form state
+  const [optOutName, setOptOutName] = useState('');
+  const [optOutEmail, setOptOutEmail] = useState('');
+  const [optOutNotes, setOptOutNotes] = useState('');
+  const [optOutSubmitting, setOptOutSubmitting] = useState(false);
+  const [optOutError, setOptOutError] = useState<string | null>(null);
+  const [optOutSubmitted, setOptOutSubmitted] = useState(false);
 
   useEffect(() => {
     if (mode === 'sunday') {
@@ -46,6 +63,29 @@ export default function SelectDateScreen() {
       setError(true);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleOptOutSubmit() {
+    if (!campus) return;
+    if (!optOutName.trim() || !optOutEmail.trim()) {
+      setOptOutError('Please enter your name and email.');
+      return;
+    }
+    setOptOutSubmitting(true);
+    setOptOutError(null);
+    try {
+      await submitSundayOptOut({
+        campusName: campus,
+        memberName: optOutName.trim(),
+        memberEmail: optOutEmail.trim(),
+        notes: optOutNotes.trim() || undefined,
+      });
+      setOptOutSubmitted(true);
+    } catch (err) {
+      setOptOutError(err instanceof Error ? err.message : 'Failed to submit your request.');
+    } finally {
+      setOptOutSubmitting(false);
     }
   }
 
@@ -114,31 +154,85 @@ export default function SelectDateScreen() {
           </View>
         )}
 
-        {mode === 'cant-meet' && (
-          <View style={styles.placeholder}>
-            <Text style={styles.placeholderText}>
-              Got it — someone from Coastal will reach out to schedule a time that works for you.
+        {mode === 'cant-meet' && !optOutSubmitted && (
+          <View style={styles.optOutBox}>
+            <Text style={styles.optOutIntro}>
+              No problem — leave your info below and someone from Coastal will reach out to
+              schedule a time that works for you.
             </Text>
-            <Text style={styles.placeholderNote}>
-              (Placeholder: this will actually notify Coastal once wired to the backend's
-              /sunday-optout endpoint — not part of this pass.)
-            </Text>
+
+            <TextInput
+              style={styles.input}
+              value={optOutName}
+              onChangeText={(t) => {
+                setOptOutName(t);
+                setOptOutError(null);
+              }}
+              placeholder="Full name"
+              autoCapitalize="words"
+            />
+            <TextInput
+              style={styles.input}
+              value={optOutEmail}
+              onChangeText={(t) => {
+                setOptOutEmail(t);
+                setOptOutError(null);
+              }}
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+            <TextInput
+              style={[styles.input, styles.notesInput]}
+              value={optOutNotes}
+              onChangeText={setOptOutNotes}
+              placeholder="Anything else we should know? (optional)"
+              multiline
+            />
+
+            {optOutError && <Text style={styles.errorText}>{optOutError}</Text>}
+
+            <Pressable
+              style={[styles.optOutButton, optOutSubmitting && styles.optOutButtonDisabled]}
+              onPress={handleOptOutSubmit}
+              disabled={optOutSubmitting}
+            >
+              {optOutSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.optOutButtonText}>Submit Request</Text>
+              )}
+            </Pressable>
           </View>
         )}
 
-        <Pressable
-          disabled={!selectedDate}
-          style={[styles.continueButton, !selectedDate && styles.continueButtonDisabled]}
-          onPress={() => {
-            if (!selectedDate || !campus) return;
-            router.push({
-              pathname: '/select-time',
-              params: { campus, date: selectedDate },
-            });
-          }}
-        >
-          <Text style={styles.continueButtonText}>Continue</Text>
-        </Pressable>
+        {mode === 'cant-meet' && optOutSubmitted && (
+          <View style={styles.optOutBox}>
+            <Text style={styles.optOutIntro}>
+              Thanks! Someone from Coastal will reach out to schedule a time that works for you.
+            </Text>
+            <Pressable style={styles.optOutButton} onPress={() => router.replace('/')}>
+              <Text style={styles.optOutButtonText}>Done</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {mode !== 'cant-meet' && (
+          <Pressable
+            disabled={!selectedDate}
+            style={[styles.continueButton, !selectedDate && styles.continueButtonDisabled]}
+            onPress={() => {
+              if (!selectedDate || !campus) return;
+              router.push({
+                pathname: '/select-time',
+                params: { campus, date: selectedDate },
+              });
+            }}
+          >
+            <Text style={styles.continueButtonText}>Continue</Text>
+          </Pressable>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -156,7 +250,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   centerBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
-  errorText: { color: '#c0392b', textAlign: 'center', fontSize: 14 },
+  errorText: { color: '#c0392b', textAlign: 'center', fontSize: 13 },
   retryButton: {
     backgroundColor: COASTAL_BLUE,
     borderRadius: 8,
@@ -191,16 +285,34 @@ const styles = StyleSheet.create({
   dateButtonSelected: { backgroundColor: COASTAL_BLUE },
   dateButtonText: { color: COASTAL_BLUE, fontSize: 15, fontWeight: '600' },
   dateButtonTextSelected: { color: '#fff' },
-  placeholder: {
+  optOutBox: {
     backgroundColor: '#EAF1F6',
     borderLeftWidth: 4,
     borderLeftColor: COASTAL_BLUE,
     borderRadius: 6,
     padding: 16,
-    gap: 8,
+    gap: 10,
   },
-  placeholderText: { color: COASTAL_BLUE, fontWeight: '600' },
-  placeholderNote: { color: '#6b7c88', fontSize: 12, fontStyle: 'italic' },
+  optOutIntro: { color: COASTAL_BLUE, fontWeight: '600', fontSize: 14, lineHeight: 20 },
+  input: {
+    borderWidth: 1.5,
+    borderColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    backgroundColor: '#fff',
+  },
+  notesInput: { minHeight: 70, textAlignVertical: 'top' },
+  optOutButton: {
+    backgroundColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  optOutButtonDisabled: { opacity: 0.7 },
+  optOutButtonText: { color: '#fff', fontSize: 15, fontWeight: '700' },
   continueButton: {
     marginTop: 'auto',
     marginBottom: 24,

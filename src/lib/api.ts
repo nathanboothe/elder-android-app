@@ -152,6 +152,23 @@ export async function fetchCampuses(): Promise<Campus[]> {
   return response.json();
 }
 
+export async function submitSundayOptOut(input: {
+  campusName: string;
+  memberName: string;
+  memberEmail: string;
+  notes?: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/sunday-optout`, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}) as { error?: string });
+    throw new Error(body.error || `Failed to submit your request (${response.status})`);
+  }
+}
+
 export async function fetchDates(
   campusName: string,
   classDate: string,
