@@ -21,6 +21,12 @@ export default function RootLayout() {
         <Stack.Screen name="admin" options={{ headerShown: true, title: 'Elder / Admin' }} />
         <Stack.Screen name="redirect" options={{ headerShown: false }} />
         <Stack.Screen name="admin-home" options={{ headerShown: true, title: 'Admin' }} />
+        <Stack.Screen name="manage-wac-codes" options={{ headerShown: true, title: 'WAC Codes' }} />
+        <Stack.Screen
+          name="manage-elder-picker"
+          options={{ headerShown: true, title: 'Select Elder' }}
+        />
+        <Stack.Screen name="manage-elder" options={{ headerShown: true, title: 'Manage' }} />
         <Stack.Screen name="book" options={{ headerShown: true, title: 'Select Campus' }} />
         <Stack.Screen name="select-date" options={{ headerShown: true }} />
         <Stack.Screen name="select-time" options={{ headerShown: true }} />
