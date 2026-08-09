@@ -17,11 +17,12 @@ function formatDate(iso: string): string {
 }
 
 export default function ConfirmedScreen() {
-  const { campus, date, time, elder } = useLocalSearchParams<{
+  const { campus, date, time, elder, emailSent } = useLocalSearchParams<{
     campus: string;
     date: string;
     time: string;
     elder: string;
+    emailSent?: string;
   }>();
   const router = useRouter();
 
@@ -55,8 +56,9 @@ export default function ConfirmedScreen() {
         </View>
 
         <Text style={styles.note}>
-          Your appointment has been saved. (Email confirmations aren't wired up on this
-          backend yet — that's still on the to-do list.)
+          {emailSent === 'true'
+            ? 'A confirmation email has been sent to you, your elder, and Coastal staff.'
+            : "Your appointment is saved, but the confirmation email couldn't be sent right now. Coastal staff can still see your booking."}
         </Text>
 
         <Pressable style={styles.doneButton} onPress={() => router.replace('/')}>

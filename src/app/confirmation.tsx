@@ -46,7 +46,7 @@ export default function ConfirmationScreen() {
     setSubmitting(true);
     setError(null);
     try {
-      await createAppointment({
+      const result = await createAppointment({
         campusName: campus,
         elderName: elder,
         date: toApiDate(date),
@@ -57,7 +57,10 @@ export default function ConfirmationScreen() {
       // Only navigate to the success screen once the backend has actually
       // confirmed the slot — if it was taken in the meantime, the error
       // surfaces here instead of a false "You're All Set!" screen.
-      router.replace({ pathname: '/confirmed', params: { campus, date, time, elder } });
+      router.replace({
+        pathname: '/confirmed',
+        params: { campus, date, time, elder, emailSent: String(result.emailSent) },
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to book your appointment.');
     } finally {
