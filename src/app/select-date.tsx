@@ -1,34 +1,53 @@
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+
+import { fetchDates } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
-function getUpcomingSundays(count: number): Date[] {
-  const sundays: Date[] = [];
-  const cursor = new Date();
-  const daysUntilSunday = (7 - cursor.getDay()) % 7;
-  cursor.setDate(cursor.getDate() + daysUntilSunday);
-
-  for (let i = 0; i < count; i++) {
-    sundays.push(new Date(cursor));
-    cursor.setDate(cursor.getDate() + 7);
-  }
-  return sundays;
-}
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+// Backend returns plain YYYY-MM-DD strings. Parsing those with `new
+// Date(iso)` directly treats them as UTC midnight, which can display as
+// the PREVIOUS day in negative-UTC-offset timezones (e.g. anywhere in the
+// US) — appending a local midnight time avoids that shift.
+function formatDate(iso: string): string {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+  });
 }
 
 export default function SelectDateScreen() {
-  const { campus } = useLocalSearchParams<{ campus: string }>();
+  const { campus, classDate } = useLocalSearchParams<{ campus: string; classDate: string }>();
   const router = useRouter();
   const [mode, setMode] = useState<'choose' | 'sunday' | 'cant-meet'>('choose');
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [dates, setDates] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
-  const sundays = getUpcomingSundays(5);
+  useEffect(() => {
+    if (mode === 'sunday') {
+      loadDates();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, campus, classDate]);
+
+  async function loadDates() {
+    if (!campus || !classDate) return;
+    setLoading(true);
+    setError(false);
+    try {
+      const data = await fetchDates(campus, classDate, 'Sunday');
+      setDates(data);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -42,32 +61,50 @@ export default function SelectDateScreen() {
             <Pressable style={styles.choiceButton} onPress={() => setMode('sunday')}>
               <Text style={styles.choiceButtonText}>Sunday</Text>
             </Pressable>
-            <Pressable
-              style={styles.choiceButtonOutline}
-              onPress={() => setMode('cant-meet')}
-            >
-              <Text style={styles.choiceButtonOutlineText}>
-                I can't meet on a Sunday
-              </Text>
+            <Pressable style={styles.choiceButtonOutline} onPress={() => setMode('cant-meet')}>
+              <Text style={styles.choiceButtonOutlineText}>I can't meet on a Sunday</Text>
             </Pressable>
           </View>
         )}
 
-        {mode === 'sunday' && (
+        {mode === 'sunday' && loading && (
+          <View style={styles.centerBox}>
+            <ActivityIndicator size="large" color={COASTAL_BLUE} />
+          </View>
+        )}
+
+        {mode === 'sunday' && !loading && error && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              Couldn't load available dates. Check your connection and try again.
+            </Text>
+            <Pressable style={styles.retryButton} onPress={loadDates}>
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </Pressable>
+          </View>
+        )}
+
+        {mode === 'sunday' && !loading && !error && dates.length === 0 && (
+          <View style={styles.centerBox}>
+            <Text style={styles.errorText}>
+              No Sundays are currently available at this campus. Try "I can't meet on a Sunday"
+              instead.
+            </Text>
+          </View>
+        )}
+
+        {mode === 'sunday' && !loading && !error && dates.length > 0 && (
           <View style={styles.dateList}>
-            {sundays.map((date) => {
-              const isSelected = selectedDate?.toDateString() === date.toDateString();
+            {dates.map((date) => {
+              const isSelected = date === selectedDate;
               return (
                 <Pressable
-                  key={date.toISOString()}
+                  key={date}
                   onPress={() => setSelectedDate(date)}
                   style={[styles.dateButton, isSelected && styles.dateButtonSelected]}
                 >
                   <Text
-                    style={[
-                      styles.dateButtonText,
-                      isSelected && styles.dateButtonTextSelected,
-                    ]}
+                    style={[styles.dateButtonText, isSelected && styles.dateButtonTextSelected]}
                   >
                     {formatDate(date)}
                   </Text>
@@ -80,12 +117,11 @@ export default function SelectDateScreen() {
         {mode === 'cant-meet' && (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderText}>
-              Got it — someone from Coastal will reach out to schedule a time that works
-              for you.
+              Got it — someone from Coastal will reach out to schedule a time that works for you.
             </Text>
             <Text style={styles.placeholderNote}>
-              (Placeholder: this will email engagement@gocoastal.org once the backend is
-              connected.)
+              (Placeholder: this will actually notify Coastal once wired to the backend's
+              /sunday-optout endpoint — not part of this pass.)
             </Text>
           </View>
         )}
@@ -97,7 +133,7 @@ export default function SelectDateScreen() {
             if (!selectedDate || !campus) return;
             router.push({
               pathname: '/select-time',
-              params: { campus, date: selectedDate.toISOString() },
+              params: { campus, date: selectedDate },
             });
           }}
         >
@@ -119,6 +155,15 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
+  centerBox: { alignItems: 'center', paddingVertical: 40, gap: 12 },
+  errorText: { color: '#c0392b', textAlign: 'center', fontSize: 14 },
+  retryButton: {
+    backgroundColor: COASTAL_BLUE,
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+  },
+  retryButtonText: { color: '#fff', fontWeight: '600' },
   choiceRow: { gap: 12 },
   choiceButton: {
     backgroundColor: COASTAL_BLUE,

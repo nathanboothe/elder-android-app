@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { fetchCampuses, type Campus } from '@/lib/api';
 const COASTAL_BLUE = '#407DA8';
 
 export default function BookScreen() {
+  const { classDate } = useLocalSearchParams<{ classDate?: string }>();
   const [campuses, setCampuses] = useState<Campus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -93,7 +94,7 @@ export default function BookScreen() {
             if (!selectedCampus) return;
             router.push({
               pathname: '/select-date',
-              params: { campus: selectedCampus.name },
+              params: { campus: selectedCampus.name, classDate },
             });
           }}
         >

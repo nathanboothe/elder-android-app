@@ -152,6 +152,21 @@ export async function fetchCampuses(): Promise<Campus[]> {
   return response.json();
 }
 
+export async function fetchDates(
+  campusName: string,
+  classDate: string,
+  dayOfWeek: string = 'Sunday'
+): Promise<string[]> {
+  const params = new URLSearchParams({ campusName, classDate, dayOfWeek });
+  const response = await fetch(`${API_BASE}/dates?${params.toString()}`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to load dates (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function fetchTimes(campusName: string, date: string): Promise<string[]> {
   const params = new URLSearchParams({ campusName, date });
   const response = await fetch(`${API_BASE}/times?${params.toString()}`, {

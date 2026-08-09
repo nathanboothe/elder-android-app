@@ -27,7 +27,10 @@ export default function ConfirmCampusScreen() {
             <Text style={styles.primaryButtonText}>Next</Text>
           </Pressable>
 
-          <Pressable style={styles.secondaryButton} onPress={() => router.push('/book')}>
+          <Pressable
+            style={styles.secondaryButton}
+            onPress={() => router.push({ pathname: '/book', params: { classDate } })}
+          >
             <Text style={styles.secondaryButtonText}>Choose a different campus</Text>
           </Pressable>
         </View>

@@ -4,8 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const COASTAL_BLUE = '#407DA8';
 
+// Backend now provides plain YYYY-MM-DD strings. Parsing with `new
+// Date(iso)` directly treats them as UTC midnight, which can display as
+// the PREVIOUS day in negative-UTC-offset timezones — appending a local
+// midnight time avoids that shift.
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', {
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
     day: 'numeric',

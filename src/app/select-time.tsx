@@ -7,8 +7,12 @@ import { fetchTimes } from '@/lib/api';
 
 const COASTAL_BLUE = '#407DA8';
 
+// Backend now provides plain YYYY-MM-DD strings. Parsing with `new
+// Date(iso)` directly treats them as UTC midnight, which can display as
+// the PREVIOUS day in negative-UTC-offset timezones — appending a local
+// midnight time avoids that shift.
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+  return new Date(`${iso}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
 function toApiDate(iso: string): string {
